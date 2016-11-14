@@ -2,8 +2,10 @@ package pl.gosub.akka.online
 
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.event.Logging
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.stream.{ActorMaterializer, ThrottleMode}
-import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -33,6 +35,15 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     println("Hello from main")
+
+    val reqResponseFlow = Flow[HttpRequest].map[HttpResponse] (_ match {
+      case HttpRequest(HttpMethods.GET, Uri.Path("/"), _, _, _) =>
+        HttpResponse(200, entity = "Hello!")
+
+      case _ => HttpResponse(200, entity = "Ooops, not found")
+    })
+
+    Http().bindAndHandle(reqResponseFlow, "localhost", 8888)
 
     system.scheduler.schedule(Duration(100, "millisecond"), Duration(50, "millisecond"), myActor, "KABOOM !!!")
 

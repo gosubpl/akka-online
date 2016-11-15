@@ -97,6 +97,8 @@ object Main {
 
     Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRefWithAck(kadaneActor, "test", "ack", "end", _ => "fail"))
 
+//    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRef(kadaneActor, "test")) // bad, won't work as no backpressure
+
     Await.ready(system.whenTerminated, Duration.Inf)
   }
 }

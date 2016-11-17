@@ -1,11 +1,16 @@
 package pl.gosub.akka.online
 
-import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
-import akka.stream.{ActorMaterializer, ThrottleMode}
+import akka.stream.QueueOfferResult.Enqueued
+import akka.stream.scaladsl.SourceQueueWithComplete
+import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+
+import scala.concurrent.Future
+import akka.pattern.pipe
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -47,14 +52,46 @@ class KadaneActor extends Actor {
   }
 }
 
+class KadaneActorFlow(queue: SourceQueueWithComplete[Int]) extends Actor {
+  val log = Logging(context.system, this)
+  var max_ending_here = 0
+  var max_so_far = 0
+  var upStream : ActorRef = self
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  def receive = {
+    case "test" => log.info("received test")
+      upStream = sender()
+      sender() ! "ack"
+    case "end" => log.info("terminating actor")
+      self ! PoisonPill
+    case s : String     => log.info(s)
+    case x : Int     =>
+      max_ending_here = Math.max(0, max_ending_here + x)
+      max_so_far = Math.max(max_so_far, max_ending_here)
+      Thread.sleep(100)
+      log.info(s"received: $x, max ending here: $max_ending_here, max so far: $max_so_far")
+      val offF = queue.offer(max_so_far)
+      offF pipeTo self
+    case e : QueueOfferResult =>
+      upStream ! "ack"
+    case _ => log.info("really bad")
+  }
+}
+
 object Main {
   implicit val system = ActorSystem()
   implicit val mat = ActorMaterializer()
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  val sourceQueue = Source.queue[Int](10, OverflowStrategy.backpressure)
+  val qSink = sourceQueue.to(Sink.foreach((x) => println(x))).run()
+
   val myActor = system.actorOf(Props[MyActor])
   val kadaneActor = system.actorOf(Props[KadaneActor])
+  val kadaneActorFlow = system.actorOf(Props(new KadaneActorFlow(qSink)))
 
   def main(args: Array[String]): Unit = {
     println("Hello from main")
@@ -95,7 +132,7 @@ object Main {
     return max_so_far
      */
 
-    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRefWithAck(kadaneActor, "test", "ack", "end", _ => "fail"))
+    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRefWithAck(kadaneActorFlow, "test", "ack", "end", _ => "fail"))
 
 //    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRef(kadaneActor, "test")) // bad, won't work as no backpressure
 

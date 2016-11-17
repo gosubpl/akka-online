@@ -67,15 +67,15 @@ class KadaneActorFlow(queue: SourceQueueWithComplete[Int]) extends Actor {
     case "end" => log.info("terminating actor")
       self ! PoisonPill
     case s : String     => log.info(s)
-    case x : Int     =>
+    case x : Int     => // onPush() + grab(in)
       max_ending_here = Math.max(0, max_ending_here + x)
       max_so_far = Math.max(max_so_far, max_ending_here)
       Thread.sleep(100)
       log.info(s"received: $x, max ending here: $max_ending_here, max so far: $max_so_far")
-      val offF = queue.offer(max_so_far)
-      offF pipeTo self
+      val offF = queue.offer(max_so_far) // onPull()
+      offF pipeTo self //push(element downstream)
     case e : QueueOfferResult =>
-      upStream ! "ack"
+      upStream ! "ack" // pull()
     case _ => log.info("really bad")
   }
 }

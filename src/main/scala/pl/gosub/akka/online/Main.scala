@@ -250,9 +250,9 @@ object Main {
 
     val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
-      val inData = Source.repeat(1).take(1000).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
+      val inData = Source.repeat(1).take(1000).map(_ => Random.nextInt(1100) - 1000).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
       val outData = Sink.foreach(println)
-      val inControl = Source.repeat(1).take(10).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
+      val inControl = Source(1 to 10).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
       val outControl = Sink.foreach(println)
 
       val cross = builder.add(crossStage)
@@ -262,7 +262,7 @@ object Main {
       ClosedShape
     }).run()
 
-    
+
 
     Await.ready(system.whenTerminated, Duration.Inf)
   }

@@ -12,6 +12,7 @@ import akka.stream._
 import scala.concurrent.Future
 import akka.pattern.pipe
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import com.google.common.hash.{BloomFilter, Funnels}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -122,39 +123,36 @@ class KadaneStage extends GraphStage[FlowShape[Int, Int]] {
 
 }
 
-class KadaneCrossStage extends GraphStage[BidiShape[Int, Int, Int, String]] {
+class BloomFilterCrossStage extends GraphStage[BidiShape[Int, Int, Int, String]] {
 
-  val dataIn: Inlet[Int] = Inlet("KadaneStage.dataIn")
-  val maxValuesOut: Outlet[Int] = Outlet("KadaneStage.maxValuesOut")
-  val queriesIn: Inlet[Int] = Inlet("KadaneStage.queriesIn")
-  val answersOut: Outlet[String] = Outlet("KadaneStage.answersOut")
-  override val shape: BidiShape[Int, Int, Int, String] = BidiShape(dataIn, maxValuesOut, queriesIn, answersOut)
+  val dataIn: Inlet[Int] = Inlet("BloomFilterCrossStage.dataIn")
+  val dataOut: Outlet[Int] = Outlet("BloomFilterCrossStage.dataOut")
+  val queriesIn: Inlet[Int] = Inlet("BloomFilterCrossStage.queriesIn")
+  val answersOut: Outlet[String] = Outlet("BloomFilterCrossStage.answersOut")
+  override val shape: BidiShape[Int, Int, Int, String] = BidiShape(dataIn, dataOut, queriesIn, answersOut)
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
 
       var maxEndingHere = 0
       var maxSoFar = 0
+      val filter = BloomFilter.create[Integer](Funnels.integerFunnel(), 1000, 0.01)
 
       setHandler(dataIn, new InHandler {
         override def onPush(): Unit = {
           val x = grab(dataIn)
-          maxEndingHere = Math.max(0, maxEndingHere + x)
-          maxSoFar = Math.max(maxSoFar, maxEndingHere)
-          println(s"stage: $x, maxEndingHere: $maxEndingHere, maxSoFar: $maxSoFar")
-//          if (isAvailable(out))
-//            push(out, maxSoFar)
-          emit(maxValuesOut, maxSoFar)
-//          pull(in)
+          filter.put(x)
+          println(s"object $x put into filter")
+          if (isAvailable(dataOut))
+            push(dataOut, x)
         }
 
         override def onUpstreamFinish(): Unit = {
-//          emit(out, maxSoFar)
           completeStage()
         }
       })
 
-      setHandler(maxValuesOut, new OutHandler {
+      setHandler(dataOut, new OutHandler {
         override def onPull(): Unit = {
           if (!hasBeenPulled(dataIn))
             pull(dataIn)
@@ -164,13 +162,16 @@ class KadaneCrossStage extends GraphStage[BidiShape[Int, Int, Int, String]] {
       setHandler(queriesIn, new InHandler {
         override def onPush(): Unit = {
           val x = grab(queriesIn)
-          val answer = s"query: $x, maxEndingHere: $maxEndingHere, maxSoFar: $maxSoFar"
-          emit(answersOut, answer)
-//          pull(in)
+          val answer = if (filter.mightContain(x)) {
+            s"YES, filter probably contains $x"
+          } else {
+            s"NO, filter probably does not contain $x"
+          }
+          if (isAvailable(answersOut))
+            push(answersOut, answer)
         }
 
         override def onUpstreamFinish(): Unit = {
-//          emit(out, maxSoFar)
           completeStage()
         }
       })
@@ -244,15 +245,15 @@ object Main {
 //    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).runWith(Sink.actorRef(kadaneActor, "test")) // bad, won't work as no backpressure
 
     val kadaneStage = new KadaneStage
-    val crossStage = new KadaneCrossStage
+    val crossStage = new BloomFilterCrossStage
 
 //    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).via(kadaneStage).runWith(Sink.foreach(println))
 
     val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
-      val inData = Source.repeat(1).take(1000).map(_ => Random.nextInt(1100) - 1000).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
+      val inData = Source.repeat(1).take(1000).map(_ => Random.nextInt(1000)).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
       val outData = Sink.foreach(println)
-      val inControl = Source(1 to 10).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
+      val inControl = Source.repeat(1).take(100).map(_ => Random.nextInt(2000) - 1000).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
       val outControl = Sink.foreach(println)
 
       val cross = builder.add(crossStage)

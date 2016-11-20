@@ -167,9 +167,9 @@ class BloomFilterCrossStage extends GraphStage[BidiShape[Int, Int, Int, String]]
         override def onPush(): Unit = {
           val x = grab(queriesIn)
           val answer = if (filter.mightContain(x)) {
-            s"YES, filter probably contains $x"
+            s"MAYBE, filter probably contains $x"
           } else {
-            s"NO, filter probably does not contain $x"
+            s"NO, filter definitely does not contain $x"
           }
           if (isAvailable(answersOut))
             push(answersOut, answer)

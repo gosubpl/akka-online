@@ -13,6 +13,9 @@ import scala.concurrent.Future
 import akka.pattern.pipe
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import com.google.common.hash.{BloomFilter, Funnels}
+import org.apache.spark.streamdm.classifiers.trees.HoeffdingTree
+import org.apache.spark.streamdm.core.specification._
+import org.apache.spark.streamdm.core.{Example, ExampleParser, Instance, TextInstance}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -249,21 +252,50 @@ object Main {
 
 //    Source.repeat(1).take(100).map(_ => Random.nextInt(1100) - 1000).via(kadaneStage).runWith(Sink.foreach(println))
 
-    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
-      import GraphDSL.Implicits._
-      val inData = Source.repeat(1).take(1000).map(_ => Random.nextInt(1000)).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
-      val outData = Sink.foreach(println)
-      val inControl = Source.repeat(1).take(100).map(_ => Random.nextInt(2000) - 1000).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
-      val outControl = Sink.foreach(println)
+//    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+//      import GraphDSL.Implicits._
+//      val inData = Source.repeat(1).take(1000).map(_ => Random.nextInt(1000)).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
+//      val outData = Sink.foreach(println)
+//      val inControl = Source.repeat(1).take(100).map(_ => Random.nextInt(2000) - 1000).throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
+//      val outControl = Sink.foreach(println)
+//
+//      val cross = builder.add(crossStage)
+//
+//      inData ~> cross.in1; cross.out1 ~> outData
+//      inControl ~> cross.in2; cross.out2 ~> outControl
+//      ClosedShape
+//    }).run()
 
-      val cross = builder.add(crossStage)
+    println("Now trying the Hoeffding Tree")
 
-      inData ~> cross.in1; cross.out1 ~> outData
-      inControl ~> cross.in2; cross.out2 ~> outControl
-      ClosedShape
-    }).run()
+    println("arffStuff")
 
+    val specParser = new SpecificationParser
 
+    val exampleSpec = specParser.fromArff("/home/janek/Downloads/arff/elecNormNew.arff")
+
+    val example1 = ExampleParser.fromArff("0,2,0.085106,0.042482,0.251116,0.003467,0.422915,0.414912,DOWN", exampleSpec)
+
+    val example2 = ExampleParser.fromArff("0,2,0.255319,0.051489,0.298721,0.003467,0.422915,0.414912,UP", exampleSpec)
+
+    println("example Arff " + example1.in.toString + " / " + example1.out.toString)
+    println("example Arff2 " + example2.in.toString + " / " + example2.out.toString)
+
+    println("Spec " + exampleSpec.in.size() + " " + exampleSpec.out.size() + " " + exampleSpec.out.isNominal(0))
+
+    println("after arff")
+
+    val hTree = new HoeffdingTree
+
+    hTree.init(exampleSpec)
+
+    hTree.trainIncremental(example1)
+
+    println(hTree.predictSingle(example1)._2)
+
+    hTree.trainIncremental(example2)
+
+    println(hTree.predictSingle(example2)._2)
 
     Await.ready(system.whenTerminated, Duration.Inf)
   }

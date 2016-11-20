@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Holmes Team at HUAWEI Noah's Ark Lab.
+ * Portions Copyright (C) 2015 Holmes Team at HUAWEI Noah's Ark Lab.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,11 @@
  * limitations under the License.
  *
  */
+
+/*
+  This file has been changed by gosubpl
+ */
+
 
 package org.apache.spark.streamdm.core.specification
 
@@ -84,6 +89,49 @@ class SpecificationParser {
 
   def fromArff(fileName: String): ExampleSpecification = {
     val lines = Source.fromFile(fileName).getLines()
+    var line: String = lines.next()
+    while (line == null || line.length() == 0 || line.startsWith(" ") ||
+      line.startsWith("%") || "@relation".equalsIgnoreCase(line.substring(0, 9))) {
+      line = lines.next()
+    }
+    var finished: Boolean = false
+    var index: Int = 0
+    val inputIS = new InstanceSpecification()
+    val outputIS = new InstanceSpecification()
+    while (!finished && line.startsWith("@")) {
+      if ("@data".equalsIgnoreCase(line.substring(0, 5))) {
+        finished = true
+      } else if ("@attribute".equalsIgnoreCase(line.substring(0, 10))) {
+
+        val featureInfos: Array[String] = line.split("\\s+")
+        val name: String = featureInfos(1)
+        if (!isArffNumeric(featureInfos(2))) {
+          val featurevalues: Array[String] = featureInfos(2).substring(
+            featureInfos(2).indexOf("{") + 1, featureInfos(2).indexOf("}")).
+            trim().split(",[\\s]?")
+
+          val fSpecification = new NominalFeatureSpecification(featurevalues)
+
+          inputIS.addFeatureSpecification(index, "Norminal" + index, fSpecification)
+        } else {
+          inputIS.addFeatureSpecification(index, "Numeric" + index)
+        }
+        index += 1
+      }
+      if (lines.hasNext)
+        line = lines.next()
+      else
+        finished = true
+    }
+    val fSpecification: FeatureSpecification = inputIS(index - 1)
+    outputIS.addFeatureSpecification(0, "class", fSpecification)
+    inputIS.removeFeatureSpecification(index - 1)
+    new ExampleSpecification(inputIS, outputIS)
+
+  }
+
+  def fromArffStrings(arffData: Seq[String]): ExampleSpecification = {
+    val lines = arffData.iterator
     var line: String = lines.next()
     while (line == null || line.length() == 0 || line.startsWith(" ") ||
       line.startsWith("%") || "@relation".equalsIgnoreCase(line.substring(0, 9))) {

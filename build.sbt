@@ -24,3 +24,6 @@ libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.21"
 
 libraryDependencies += "com.google.guava" % "guava" % "20.0"
 
+libraryDependencies += "com.github.javacliparser" % "javacliparser" % "0.5.0"
+
+

@@ -8,6 +8,8 @@ Sample `Arff` files can be found in the [MOA dataset repository](http://moa.cs.w
 
 For theoretical exposition to `HoeffdingTree` usage go to [the original paper](http://homes.cs.washington.edu/%7Epedrod/papers/kdd00.pdf).
 
+If you are asking yourself question _why Akka, not Spark?_ - please read the classic [bigger data, same laptop](http://www.frankmcsherry.org/graph/scalability/cost/2015/02/04/COST2.html) to see what we can gain _going lightweight_. In previous century, 4.5k records [machine learning data set](http://informatique.umons.ac.be/ssi/teaching/dwdm/spambase.arff) could be considered sizeable and hence all the growth of _clustering_ for data processing. But with today's hardware I believe _we can do better_.
+
 In the `/lib` directory of the project I have put `suffixtree-1.0.0-SNAPSHOT.jar` which is a compiled artifact of the [Ukkonen's on-line Suffix Tree implementation](https://github.com/abahgat/suffixtree). The licensse for this project is also Apache 2.0.
 
 In this project I also use Guava implementation of `Bloom Filter` (see project dependencies) but there are other [options](https://github.com/alexandrnikitin/bloom-filter-scala).

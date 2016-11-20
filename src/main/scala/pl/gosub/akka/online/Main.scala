@@ -12,6 +12,7 @@ import akka.stream._
 import scala.concurrent.Future
 import akka.pattern.pipe
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import com.abahgat.suffixtree.GeneralizedSuffixTree
 import com.google.common.hash.{BloomFilter, Funnels}
 import org.apache.spark.streamdm.classifiers.trees.HoeffdingTree
 import org.apache.spark.streamdm.core.specification._
@@ -296,6 +297,16 @@ object Main {
     hTree.trainIncremental(example2)
 
     println(hTree.predictSingle(example2)._2)
+
+    println("now suffix tree")
+
+    val suffixTree = new GeneralizedSuffixTree()
+
+    suffixTree.put("cacao", 0)
+
+    println("Searching: " + suffixTree.search("cac"))
+
+    println("Searching: " + suffixTree.search("caco"))
 
     Await.ready(system.whenTerminated, Duration.Inf)
   }

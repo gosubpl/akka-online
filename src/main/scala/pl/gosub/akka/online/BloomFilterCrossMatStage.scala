@@ -28,8 +28,6 @@ class BloomFilterCrossMatStage extends GraphStageWithMaterializedValue[BidiShape
 
     val logic = new GraphStageLogic(shape) {
       // State
-      var maxEndingHere = 0
-      var maxSoFar = 0
       val filter = BloomFilter.create[Integer](Funnels.integerFunnel(), 1000, 0.01)
 
       setHandler(dataIn, new InHandler {

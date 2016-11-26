@@ -6,13 +6,11 @@ import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, RunnableGraph, Sink, Source}
 import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
 import com.abahgat.suffixtree.GeneralizedSuffixTree
-import com.google.common.hash.{BloomFilter, Funnels}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.collection.immutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
-import scala.util.Random
 
 /**
   * A Y-shaped flow of elements that consequently has two inputs
@@ -128,10 +126,15 @@ object SuffixTreeTripodMatStageMatMain extends App {
 
   val tripodStage = new SuffixTreeTripodMatStage
 
+  val gen = List("aaagtc", "aaaggtc", "aaaatttccdg", "aaggtgta", "abb", "ggggttaacca", "attgttaca", "gttacgggga")
+  val sequence = List.fill(12)(gen).flatten
+
+  println(sequence)
+
   val graph = RunnableGraph.fromGraph(GraphDSL.create(Sink.foreach(println)) { implicit builder => outMatches =>
     import GraphDSL.Implicits._
-    val inStrings = Source.repeat(1).take(100).map(_ => "aaa").throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
-    val inSearches = Source.repeat(1).take(10).map(_ => "aaa").throttle(1, Duration(1500, "millisecond"), 1, ThrottleMode.shaping)
+    val inStrings = Source.fromIterator(() => sequence.toIterator).throttle(1, Duration(100, "millisecond"), 1, ThrottleMode.shaping)
+    val inSearches = Source.repeat(1).take(10).map(_ => "aaa").throttle(1, Duration(300, "millisecond"), 1, ThrottleMode.shaping)
 
     val tripod = builder.add(tripodStage)
 

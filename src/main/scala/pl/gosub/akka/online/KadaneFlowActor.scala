@@ -1,14 +1,14 @@
 package pl.gosub.akka.online
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.Logging
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult, ThrottleMode}
 import akka.stream.scaladsl.{Sink, Source, SourceQueueWithComplete}
-import akka.pattern.pipe
+import akka.pattern.pipe // For the pipeTo pattern
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.util.Random // For the pipeTo pattern
+import scala.util.Random
 
 class KadaneFlowActor(queue: SourceQueueWithComplete[Int]) extends Actor {
   val log = Logging(context.system, this)

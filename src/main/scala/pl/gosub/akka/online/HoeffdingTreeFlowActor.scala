@@ -76,7 +76,9 @@ object HoeffdingTreeFlowActorMain extends App {
 
   val specParser = new SpecificationParser
 
-  val exampleSpec = specParser.fromArff("/home/janek/Downloads/arff/elecNormNew.arff")
+  val arffPath = this.getClass.getResource("/elecNormNew.arff").getPath
+
+  val exampleSpec = specParser.fromArff(arffPath)
 
   val hoeffdingTreeFlowActor = system.actorOf(Props(new HoeffdingTreeFlowActor(actorSink, exampleSpec)))
 

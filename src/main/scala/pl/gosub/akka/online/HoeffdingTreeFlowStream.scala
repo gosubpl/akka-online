@@ -3,27 +3,31 @@ package pl.gosub.akka.online
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Merge, RunnableGraph, Sink, Source}
+import com.sun.xml.internal.ws.util.StreamUtils
 import org.apache.spark.streamdm.classifiers.trees.HoeffdingTree
 import org.apache.spark.streamdm.core.{Example, ExampleParser}
 import org.apache.spark.streamdm.core.specification.{ExampleSpecification, SpecificationParser}
 
-import scala.concurrent.{Await}
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 class HoeffdingTreeProcessor(val schema: ExampleSpecification) {
   // state
   val hTree = new HoeffdingTree
   hTree.init(schema)
+  var count = 0
 
   def process(query: LearnerQuery) = {
     query.queryType match {
       case "EXAMPLE" =>
         hTree.trainIncremental(query.elem)
-        "Received: " + query.elem.toString + ", learned\n"
+        count += 1
+        "Received: " + count + " " + query.elem.toString + ", learned\n"
 
       case "QUERY" =>
         val answer = hTree.predictSingle(query.elem)
-        "Received: " + query.elem.toString + ", generated prediction " + answer._2 + "\n"
+        count += 1
+        "Received: " + count + " " + query.elem.toString + ", generated prediction " + answer._2 + "\n"
 
       case _ => "Unrecognised message, ignoring"
     }
@@ -55,12 +59,12 @@ object HoeffdingTreeFlowStreamMain extends App {
   */
 
   val examples = List(example1, example2)
-  val queries = List(example1, example2, example3, example4)
+  val queries = List(example1, example2, example3, example4, example2)
 
-  val masterControlProgram = RunnableGraph.fromGraph(GraphDSL.create(Sink.foreach(println)) { implicit builder =>
+  val masterControlProgram = RunnableGraph.fromGraph(GraphDSL.create(Sink.foreach(print)) { implicit builder =>
     outMatches =>
       import GraphDSL.Implicits._
-      val inExamples = Source.fromIterator(() => examples.toIterator).throttle(1, Duration(3500, "millisecond"), 1, ThrottleMode.shaping)
+      val inExamples = Source.fromIterator(() => examples.toIterator).throttle(1, Duration(2500, "millisecond"), 1, ThrottleMode.shaping)
       val inQueries = Source.fromIterator(() => queries.toIterator).throttle(1, Duration(1000, "millisecond"), 1, ThrottleMode.shaping)
 
       val taggedExamples = inExamples.map(LearnerQuery("EXAMPLE", _))
@@ -68,7 +72,10 @@ object HoeffdingTreeFlowStreamMain extends App {
       val fanIn = builder.add(Merge[LearnerQuery](2))
 
       taggedExamples ~> fanIn.in(0);
-      fanIn.out.map(new HoeffdingTreeProcessor(exampleSpec).process(_)) ~> outMatches
+      fanIn.out.statefulMapConcat(() => {
+        val proc = new HoeffdingTreeProcessor(exampleSpec)
+        proc.process(_)
+      }) ~> outMatches
       taggedQueries ~> fanIn.in(1)
       ClosedShape
   }).run()

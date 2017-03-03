@@ -71,7 +71,7 @@ object HoeffdingTreeFlowStreamMain extends App {
       val taggedQueries = inQueries.map(LearnerQuery("QUERY", _))
       val fanIn = builder.add(Merge[LearnerQuery](2))
 
-      taggedExamples ~> fanIn.in(0);
+      taggedExamples ~> fanIn.in(0)
       fanIn.out.statefulMapConcat(() => {
         val proc = new HoeffdingTreeProcessor(exampleSpec)
         proc.process(_)

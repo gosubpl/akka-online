@@ -13,7 +13,7 @@ class FollowTheLeaderLogic(val hypotheses: Seq[Double => Double], lossFunction: 
     past.dropWhile(_ => past.size >= windowSize)
 
     val leader = if(past isEmpty) {
-      hypotheses(0)
+      hypotheses.head
     } else {
       hypotheses
         .map(hypothesis => (hypothesis, past.map{ case (x, y) => lossFunction(hypothesis(x), y)}.reduce(_+_)))

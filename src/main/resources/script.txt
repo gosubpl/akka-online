@@ -1,0 +1,2 @@
+for x in `cat elecNormNew.arff | tail -n +14 | head`; do echo $x; sleep 1; done
+for x in `cat elecNormNew.arff | tail -n +14 | head`; do rnd=$(( ( RANDOM % 10 )  + 1 )); if [ $rnd == 1 ] ; then action="QUERY" ; else action="EXAMPLE" ; fi; echo $action';'$x; sleep 1; done

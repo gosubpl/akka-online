@@ -26,4 +26,5 @@ libraryDependencies += "com.google.guava" % "guava" % "20.0"
 
 libraryDependencies += "com.github.javacliparser" % "javacliparser" % "0.5.0"
 
+libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-file" % "0.8"
 

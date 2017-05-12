@@ -35,6 +35,7 @@ object HoeffdingTreeWithAlpakka extends App {
     pollingInterval = 250.millis
   )
 
+//  if the lines below do not work, please make sure that you got the linefeed character right wrt your operating system (LF vs CRLF)
 //  lines.map(line => LearnerQuery(line.split(";").apply(0), ExampleParser.fromArff(line.split(";").apply(1), exampleSpec)))
 //    .runForeach(line => System.out.println(line))
 

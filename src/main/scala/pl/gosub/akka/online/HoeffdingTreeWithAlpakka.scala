@@ -20,11 +20,12 @@ object HoeffdingTreeWithAlpakka extends App {
 
   val specParser = new SpecificationParser
 
-  val arffPath = this.getClass.getResource("/elecNormNew.arff").getPath
+  val arffPath = this.getClass.getResource("/elecNormNew.arff").getPath // add for Windows .replaceFirst("^/(.:/)", "$1")
 
   val exampleSpec = specParser.fromArff(arffPath)
 
-  val fsPath = this.getClass.getResource("/elecNormData.txt").getPath
+  val fsPath = this.getClass.getResource("/elecNormData.txt").getPath // add for Windows .replaceFirst("^/(.:/)", "$1")
+  println(fsPath)
 
 
   val fs = FileSystems.getDefault
